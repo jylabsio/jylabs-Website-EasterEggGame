@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dev Invaders · Secret Level</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #080c14;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Courier New', monospace;
+  padding: 32px 16px 64px;
+  overflow-x: hidden;
+}
+#title-area { text-align: center; margin-bottom: 20px; }
+#title-eyebrow { font-size: 10px; letter-spacing: 6px; color: #334155; text-transform: uppercase; margin-bottom: 6px; }
+#title-main { font-size: 28px; font-weight: 900; letter-spacing: -1px; color: #e2e8f0; }
+#title-sub { font-size: 10px; color: #334155; letter-spacing: 3px; margin-top: 4px; }
+#game-wrap {
+  position: relative;
+  width: 600px;
+  height: 1200px;
+  background: #0a0f1e;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 80px rgba(96,165,250,0.06), 0 20px 60px rgba(0,0,0,0.6);
+}
+#game-wrap::before {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+#stars {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(1px 1px at 8% 12%, #ffffff28, transparent),
+    radial-gradient(1px 1px at 22% 38%, #ffffff18, transparent),
+    radial-gradient(1px 1px at 37% 7%, #ffffff22, transparent),
+    radial-gradient(1px 1px at 53% 58%, #ffffff15, transparent),
+    radial-gradient(1px 1px at 68% 24%, #ffffff22, transparent),
+    radial-gradient(1px 1px at 80% 73%, #ffffff18, transparent),
+    radial-gradient(1px 1px at 91% 43%, #ffffff20, transparent),
+    radial-gradient(1px 1px at 14% 79%, #ffffff12, transparent),
+    radial-gradient(1px 1px at 31% 91%, #ffffff18, transparent),
+    radial-gradient(1.5px 1.5px at 46% 31%, #ffffff30, transparent),
+    radial-gradient(1.5px 1.5px at 76% 11%, #ffffff28, transparent),
+    radial-gradient(1.5px 1.5px at 19% 54%, #ffffff25, transparent);
+}
+#hud {
+  position: absolute; top: 0; left: 0; right: 0; height: 36px;
+  background: rgba(10,15,30,0.96);
+  border-bottom: 1px solid #1e293b;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; font-size: 11px; letter-spacing: 2px; color: #475569;
+  z-index: 10;
+}
+.hud-val { color: #60a5fa; font-weight: 700; }
+.heart { font-size: 13px; color: #fb7185; }
+.heart.dead { opacity: 0.2; }
+.entity { position: absolute; pointer-events: none; }
+#ship-el { position: absolute; pointer-events: none; z-index: 5; }
+.pbullet {
+  position: absolute; width: 3px; height: 14px;
+  background: linear-gradient(to top, #60a5fa, #bfdbfe);
+  border-radius: 2px;
+  box-shadow: 0 0 8px #60a5fa, 0 0 16px rgba(59,130,246,0.25);
+  pointer-events: none;
+}
+.ebullet {
+  position: absolute; width: 3px; height: 10px;
+  background: linear-gradient(to bottom, #fb7185, rgba(253,164,175,0.4));
+  border-radius: 2px;
+  box-shadow: 0 0 6px #fb7185;
+  pointer-events: none;
+}
+.xdot {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  pointer-events: none;
+  animation: xfly 0.4s ease-out forwards;
+}
+#bottom-line {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(96,165,250,0.18), transparent);
+  z-index: 5;
+}
+/* overlays */
+.overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(8,12,20,0.96);
+  backdrop-filter: blur(4px);
+  z-index: 20;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  padding: 40px 24px;
+}
+.overlay.end { justify-content: flex-start; overflow-y: auto; padding-top: 56px; padding-bottom: 56px; }
+.overlay h1 { font-size: 24px; font-weight: 900; color: #e2e8f0; letter-spacing: -0.5px; margin-bottom: 8px; }
+.overlay .eyebrow { font-size: 10px; letter-spacing: 6px; color: #475569; text-transform: uppercase; margin-bottom: 14px; }
+.overlay .sub { font-size: 10px; color: #475569; line-height: 1.9; margin-bottom: 28px; }
+.score-big { font-size: 36px; font-weight: 900; color: #e2e8f0; margin-bottom: 4px; }
+.score-label { font-size: 9px; letter-spacing: 3px; color: #334155; margin-bottom: 32px; }
+.divider { width: 40px; height: 1px; background: #1e293b; margin: 0 auto 32px; }
+.hire-head { font-size: 24px; font-weight: 900; color: #e2e8f0; letter-spacing: -1px; line-height: 1.2; margin-bottom: 16px; }
+.hire-body { font-size: 11px; color: #64748b; line-height: 1.9; max-width: 360px; margin: 0 auto 24px; }
+.hire-body em { color: #334155; font-style: normal; font-size: 10px; }
+.chips { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; margin-bottom: 28px; max-width: 400px; }
+.chip { padding: 4px 12px; border: 1px solid #1e293b; border-radius: 2px; font-size: 8px; letter-spacing: 2px; color: #475569; text-transform: uppercase; }
+.btn-row { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+.btn-primary {
+  padding: 10px 28px; background: #e2e8f0; color: #0a0f1e;
+  border: none; border-radius: 2px; font-size: 10px;
+  font-family: 'Courier New', monospace; letter-spacing: 3px;
+  font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block;
+}
+.btn-secondary {
+  padding: 10px 20px; background: transparent; color: #475569;
+  border: 1px solid #1e293b; border-radius: 2px; font-size: 9px;
+  font-family: 'Courier New', monospace; letter-spacing: 3px;
+  font-weight: 700; cursor: pointer;
+}
+.micro { font-size: 8px; letter-spacing: 2px; color: #1e293b; }
+.enemy-list { display: flex; flex-direction: column; gap: 8px; align-items: center; margin-bottom: 24px; }
+.enemy-row { display: flex; align-items: center; gap: 10px; font-size: 9px; letter-spacing: 2px; color: #64748b; }
+#countdown-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(8,12,20,0.75);
+  backdrop-filter: blur(2px);
+  z-index: 20; pointer-events: none;
+}
+#countdown-num { font-size: 80px; font-weight: 900; color: #e2e8f0; letter-spacing: -2px; line-height: 1; text-shadow: 0 0 40px rgba(96,165,250,0.5); }
+#countdown-hint { font-size: 10px; color: #475569; letter-spacing: 4px; margin-top: 16px; }
+#controls-hint { margin-top: 12px; font-size: 10px; color: #1e293b; letter-spacing: 3px; }
+#legend { margin-top: 16px; display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: #334155; letter-spacing: 1px; }
+.status-badge { font-size: 9px; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 6px; }
+.status-badge.dead { color: #fb7185; animation: blink 1.2s infinite; }
+.status-badge.won { color: #4ade80; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+@keyframes xfly {
+  0% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(0.2); }
+}
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="title-area">
+  <div id="title-eyebrow">secret level</div>
+  <div id="title-main">DEV INVADERS</div>
+  <div id="title-sub" id="title-sub-el">wave 1 · hi 00000</div>
+</div>
+
+<div id="game-wrap">
+  <div id="stars"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div>SCORE <span class="hud-val" id="hud-score">00000</span></div>
+    <div id="hud-hearts"></div>
+    <div>WAVE <span class="hud-val" id="hud-wave">01</span></div>
+  </div>
+
+  <!-- Game layer -->
+  <div id="game-layer" style="position:absolute;inset:0;top:36px;z-index:2;"></div>
+
+  <div id="bottom-line"></div>
+
+  <!-- Countdown -->
+  <div id="countdown-overlay" style="display:none;">
+    <div id="countdown-num">3</div>
+    <div id="countdown-hint">← → MOVE · SPACE SHOOT</div>
+  </div>
+
+  <!-- Idle overlay -->
+  <div class="overlay" id="idle-overlay">
+    <div class="eyebrow">you found it</div>
+    <h1>DEV INVADERS</h1>
+    <div class="sub">destroy the browser overlords<br>← → to move · space to shoot</div>
+    <div class="enemy-list" id="enemy-legend"></div>
+    <button class="btn-primary" onclick="startGame()">INSERT COIN</button>
+  </div>
+
+  <!-- End overlay (dead / won) -->
+  <div class="overlay end" id="end-overlay" style="display:none;">
+    <div class="status-badge" id="end-badge"></div>
+    <div class="score-big" id="end-score">00000</div>
+    <div class="score-label" id="end-hiscore"></div>
+    <div class="divider"></div>
+    <div class="eyebrow">congrats, you found the easter egg</div>
+    <div class="hire-head">You just defeated<br>Chrome &amp; Figma.</div>
+    <div class="hire-body">
+      If you made it this far, you have good instincts.<br>
+      I enjoy designing UI and building for the web —<br>
+      the kind of person who hides arcade games in portfolios<br>
+      <em>(instead of, say, a third hero section with a stock photo). ;)</em>
+    </div>
+    <div class="chips">
+      <div class="chip">UI Design</div>
+      <div class="chip">Web Design</div>
+      <div class="chip">Front-End Dev</div>
+      <div class="chip">Figma</div>
+      <div class="chip">React</div>
+      <div class="chip">Easter Eggs</div>
+    </div>
+    <div class="btn-row">
+      <a class="btn-primary" href="mailto:jylabs.io@gmail.com">LET'S TALK</a>
+      <button class="btn-secondary" onclick="startGame()">PLAY AGAIN</button>
+    </div>
+    <div class="micro">MADE WITH TOO MUCH COFFEE</div>
+  </div>
+</div>
+
+<div id="controls-hint" style="display:none;">← → MOVE · SPACE SHOOT</div>
+<div id="legend"></div>
+
+<script>
+// ─── SVG Templates ───────────────────────────────────────────────
+const SVG = {
+  chrome: `<svg viewBox="0 0 32 32" width="28" height="28">
+    <circle cx="16" cy="16" r="10" fill="#4285F4"/>
+    <circle cx="16" cy="16" r="6" fill="white"/>
+    <circle cx="16" cy="16" r="3.5" fill="#4285F4"/>
+    <path d="M16 6 A10 10 0 0 1 24.66 11" stroke="#EA4335" stroke-width="4" fill="none"/>
+    <path d="M24.66 11 A10 10 0 0 1 24.66 21" stroke="#FBBC04" stroke-width="4" fill="none"/>
+    <path d="M24.66 21 A10 10 0 0 1 7.34 21" stroke="#34A853" stroke-width="4" fill="none"/>
+    <path d="M7.34 21 A10 10 0 0 1 7.34 11" stroke="#EA4335" stroke-width="4" fill="none"/>
+    <path d="M7.34 11 A10 10 0 0 1 16 6" stroke="#4285F4" stroke-width="4" fill="none"/>
+  </svg>`,
+  firefox: `<svg viewBox="0 0 32 32" width="28" height="28">
+    <circle cx="16" cy="16" r="10" fill="#00AACC"/>
+    <circle cx="16" cy="16" r="6" fill="#0066BB"/>
+    <path d="M6 13 Q8 6 16 6 Q24 6 26 13 Q28 20 22 24 Q18 27 16 26 Q20 22 20 18 Q18 22 14 22 Q10 22 10 18 Q8 14 12 12 Q8 12 6 13Z" fill="#FF6611"/>
+    <path d="M20 8 Q24 10 25 15 Q22 10 18 11 Q22 9 20 8Z" fill="#FF980A"/>
+  </svg>`,
+  safari: `<svg viewBox="0 0 32 32" width="28" height="28">
+    <circle cx="16" cy="16" r="11" fill="white" stroke="#E0E0E0" stroke-width="1"/>
+    <circle cx="16" cy="16" r="9" fill="none" stroke="#C0C0C0" stroke-width="0.5"/>
+    <line x1="16" y1="7" x2="16" y2="9" stroke="#333" stroke-width="1.5"/>
+    <line x1="16" y1="23" x2="16" y2="25" stroke="#333" stroke-width="1.5"/>
+    <line x1="7" y1="16" x2="9" y2="16" stroke="#333" stroke-width="1.5"/>
+    <line x1="23" y1="16" x2="25" y2="16" stroke="#333" stroke-width="1.5"/>
+    <polygon points="16,10 19,19 16,17 13,19" fill="#FF3B30"/>
+    <polygon points="16,22 13,13 16,15 19,13" fill="#006CFF"/>
+    <circle cx="16" cy="16" r="1.5" fill="#333"/>
+  </svg>`,
+  vscode: `<svg viewBox="0 0 32 32" width="28" height="28">
+    <rect x="3" y="3" width="26" height="26" rx="5" fill="#007ACC"/>
+    <path d="M8 10 L14 16 L8 22" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="14" y1="22" x2="22" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>`,
+  figma: `<svg viewBox="0 0 32 32" width="28" height="28">
+    <rect x="10" y="4" width="6" height="6" rx="3" fill="#F24E1E"/>
+    <rect x="16" y="4" width="6" height="6" rx="3" fill="#FF7262"/>
+    <rect x="10" y="10" width="6" height="6" rx="0" fill="#A259FF"/>
+    <rect x="10" y="16" width="6" height="6" rx="3" fill="#1ABCFE"/>
+    <rect x="10" y="22" width="6" height="6" rx="3" fill="#0ACF83"/>
+    <circle cx="19" cy="13" r="3" fill="#A259FF"/>
+  </svg>`,
+  node: `<svg viewBox="0 0 32 32" width="28" height="28">
+    <polygon points="16,3 28,10 28,22 16,29 4,22 4,10" fill="#339933"/>
+    <text x="16" y="20" text-anchor="middle" fill="white" font-size="10" font-family="monospace" font-weight="bold">JS</text>
+  </svg>`,
+  ship: `<svg viewBox="0 0 32 32" width="32" height="32">
+    <polygon points="16,2 26,28 16,22 6,28" fill="#e2e8f0"/>
+    <polygon points="16,8 22,26 16,21 10,26" fill="#0f172a"/>
+    <circle cx="16" cy="14" r="3" fill="#60a5fa"/>
+    <rect x="4" y="22" width="4" height="6" rx="1" fill="#f97316" opacity="0.9"/>
+    <rect x="24" y="22" width="4" height="6" rx="1" fill="#f97316" opacity="0.9"/>
+  </svg>`
+};
+
+// ─── Enemy types ─────────────────────────────────────────────────
+const ENEMY_TYPES = [
+  { name: 'Chrome',  svg: SVG.chrome,  points: 10 },
+  { name: 'Firefox', svg: SVG.firefox, points: 20 },
+  { name: 'Safari',  svg: SVG.safari,  points: 15 },
+  { name: 'VS Code', svg: SVG.vscode,  points: 30 },
+  { name: 'Figma',   svg: SVG.figma,   points: 25 },
+  { name: 'Node',    svg: SVG.node,    points: 20 },
+];
+
+// ─── Constants ───────────────────────────────────────────────────
+const GW = 600, GH = 1200;
+const SHIP_Y = GH - 70;
+const BULLET_SPD = 8, EBULLET_SPD = 1.8, SHIP_SPD = 5;
+const ENEMY_VX = 0.5;
+const HUD_H = 36;
+
+// ─── State ───────────────────────────────────────────────────────
+let gameState = 'idle'; // idle | countdown | playing | dead | won
+let score = 0, highScore = 0, lives = 3, wave = 1;
+let shipX = GW / 2;
+let enemies = [], bullets = [], eBullets = [], explosions = [];
+let enemyDir = 1;
+let frame = 0, lastShot = 0;
+let rafId = null;
+let keys = {};
+let countdownVal = 3;
+let countdownTimer = null;
+
+// ─── DOM refs ────────────────────────────────────────────────────
+const gameLayer = document.getElementById('game-layer');
+const hudScore  = document.getElementById('hud-score');
+const hudWave   = document.getElementById('hud-wave');
+const hudHearts = document.getElementById('hud-hearts');
+const titleSub  = document.getElementById('title-sub');
+const idleOverlay     = document.getElementById('idle-overlay');
+const endOverlay      = document.getElementById('end-overlay');
+const countdownOverlay= document.getElementById('countdown-overlay');
+const countdownNum    = document.getElementById('countdown-num');
+const controlsHint    = document.getElementById('controls-hint');
+const legendEl        = document.getElementById('legend');
+
+// ─── Build enemy legend on idle screen ───────────────────────────
+const enemyLegendEl = document.getElementById('enemy-legend');
+ENEMY_TYPES.slice(0,4).forEach(t => {
+  const row = document.createElement('div');
+  row.className = 'enemy-row';
+  row.innerHTML = t.svg + `<span>${t.name.toUpperCase()} · ${t.points} PTS</span>`;
+  enemyLegendEl.appendChild(row);
+});
+
+// bottom legend
+ENEMY_TYPES.forEach(t => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = t.svg + `<span>${t.name}</span>`;
+  legendEl.appendChild(item);
+});
+
+// ─── DOM node pool helpers ────────────────────────────────────────
+function makeSVGEl(svgStr, cls) {
+  const wrap = document.createElement('div');
+  wrap.className = cls;
+  wrap.style.position = 'absolute';
+  wrap.style.pointerEvents = 'none';
+  wrap.innerHTML = svgStr;
+  return wrap;
+}
+
+// ─── Init enemies ────────────────────────────────────────────────
+function initEnemies() {
+  enemies = [];
+  const typeRow = [0,1,2];
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 8; c++) {
+      enemies.push({
+        id: `${r}-${c}`,
+        x: 60 + c * 66,
+        y: 60 + r * 56,
+        type: ENEMY_TYPES[typeRow[r] % ENEMY_TYPES.length],
+        alive: true,
+        el: null,
+      });
+    }
+  }
+}
+
+// ─── Render helpers ──────────────────────────────────────────────
+let shipEl = null;
+const bulletEls = new Map();
+const eBulletEls = new Map();
+const enemyEls = new Map();
+
+function ensureShip() {
+  if (!shipEl) {
+    shipEl = document.createElement('div');
+    shipEl.style.cssText = 'position:absolute;pointer-events:none;z-index:5;width:32px;height:32px;';
+    shipEl.innerHTML = SVG.ship;
+    gameLayer.appendChild(shipEl);
+  }
+}
+
+function renderAll() {
+  // HUD
+  hudScore.textContent = String(score).padStart(5,'0');
+  hudWave.textContent  = String(wave).padStart(2,'0');
+  titleSub.textContent = `wave ${wave} · hi ${String(highScore).padStart(5,'0')}`;
+  hudHearts.innerHTML  = [0,1,2].map(i => `<span class="heart${i<lives?'':' dead'}">♥</span>`).join('');
+
+  // Ship
+  if (gameState === 'playing' || gameState === 'countdown') {
+    ensureShip();
+    shipEl.style.left = (shipX - 16) + 'px';
+    shipEl.style.top  = (SHIP_Y - 16) + 'px';
+    shipEl.style.display = 'block';
+  } else if (shipEl) {
+    shipEl.style.display = 'none';
+  }
+
+  // Enemies
+  enemies.forEach(e => {
+    if (!e.alive) {
+      if (enemyEls.has(e.id)) { enemyEls.get(e.id).remove(); enemyEls.delete(e.id); }
+      return;
+    }
+    let el = enemyEls.get(e.id);
+    if (!el) {
+      el = document.createElement('div');
+      el.style.cssText = 'position:absolute;pointer-events:none;width:28px;height:28px;';
+      el.innerHTML = e.type.svg;
+      gameLayer.appendChild(el);
+      enemyEls.set(e.id, el);
+    }
+    el.style.left = (e.x - 14) + 'px';
+    el.style.top  = (e.y - 14) + 'px';
+  });
+
+  // Player bullets
+  const activeBulletIds = new Set(bullets.map(b=>b.id));
+  bulletEls.forEach((el,id) => { if (!activeBulletIds.has(id)) { el.remove(); bulletEls.delete(id); } });
+  bullets.forEach(b => {
+    let el = bulletEls.get(b.id);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'pbullet';
+      gameLayer.appendChild(el);
+      bulletEls.set(b.id, el);
+    }
+    el.style.left = (b.x - 1) + 'px';
+    el.style.top  = b.y + 'px';
+  });
+
+  // Enemy bullets
+  const activeEBulletIds = new Set(eBullets.map(b=>b.id));
+  eBulletEls.forEach((el,id) => { if (!activeEBulletIds.has(id)) { el.remove(); eBulletEls.delete(id); } });
+  eBullets.forEach(b => {
+    let el = eBulletEls.get(b.id);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'ebullet';
+      gameLayer.appendChild(el);
+      eBulletEls.set(b.id, el);
+    }
+    el.style.left = (b.x - 1) + 'px';
+    el.style.top  = b.y + 'px';
+  });
+}
+
+// ─── Explosion ───────────────────────────────────────────────────
+const XCOLORS = ['#f97316','#facc15','#60a5fa','#fb7185'];
+function spawnExplosion(x, y) {
+  for (let i = 0; i < 8; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'xdot';
+    const angle = i * 45;
+    const dist = 8 + Math.random() * 10;
+    const dx = Math.cos(angle * Math.PI/180) * dist;
+    const dy = Math.sin(angle * Math.PI/180) * dist;
+    dot.style.cssText = `
+      left:${x + dx}px; top:${y + dy}px;
+      background:${XCOLORS[i%4]};
+      box-shadow: 0 0 4px ${XCOLORS[i%4]};
+    `;
+    gameLayer.appendChild(dot);
+    setTimeout(() => dot.remove(), 500);
+  }
+}
+
+// ─── Game logic ──────────────────────────────────────────────────
+function startGame() {
+  // Reset
+  cancelAnimationFrame(rafId);
+  clearTimeout(countdownTimer);
+  gameLayer.innerHTML = '';
+  shipEl = null;
+  bulletEls.clear(); eBulletEls.clear(); enemyEls.clear();
+  bullets = []; eBullets = []; explosions = [];
+  score = 0; lives = 3; wave = 1; frame = 0; lastShot = 0;
+  shipX = GW / 2; enemyDir = 1;
+  initEnemies();
+
+  // Show countdown
+  idleOverlay.style.display  = 'none';
+  endOverlay.style.display   = 'none';
+  controlsHint.style.display = 'none';
+  legendEl.style.display     = 'none';
+  countdownOverlay.style.display = 'flex';
+  countdownVal = 3;
+  countdownNum.textContent = '3';
+  gameState = 'countdown';
+  renderAll();
+
+  const tick = () => {
+    countdownVal--;
+    if (countdownVal > 0) {
+      countdownNum.textContent = countdownVal;
+      countdownTimer = setTimeout(tick, 1000);
+    } else {
+      countdownNum.textContent = 'GO!';
+      countdownNum.style.fontSize = '36px';
+      countdownTimer = setTimeout(() => {
+        countdownOverlay.style.display = 'none';
+        countdownNum.style.fontSize = '80px';
+        gameState = 'playing';
+        controlsHint.style.display = 'block';
+        loop();
+      }, 700);
+    }
+  };
+  countdownTimer = setTimeout(tick, 1000);
+}
+
+function showEnd(state) {
+  cancelAnimationFrame(rafId);
+  gameState = state;
+  controlsHint.style.display = 'none';
+  if (score > highScore) highScore = score;
+
+  const badge = document.getElementById('end-badge');
+  badge.textContent = state === 'dead' ? 'game over' : 'you win';
+  badge.className = 'status-badge ' + state;
+
+  document.getElementById('end-score').textContent = String(score).padStart(5,'0');
+  const hiEl = document.getElementById('end-hiscore');
+  hiEl.textContent = (score >= highScore && score > 0) ? '✦ NEW HIGH SCORE ✦' : `HIGH SCORE ${String(highScore).padStart(5,'0')}`;
+
+  endOverlay.style.display = 'flex';
+  endOverlay.scrollTop = 0;
+  titleSub.textContent = `wave ${wave} · hi ${String(highScore).padStart(5,'0')}`;
+}
+
+function loop() {
+  if (gameState !== 'playing') return;
+  rafId = requestAnimationFrame(loop);
+  frame++;
+
+  const alive = enemies.filter(e => e.alive);
+
+  // Move ship
+  if (keys['ArrowLeft'] || keys['a']) shipX = Math.max(20, shipX - SHIP_SPD);
+  if (keys['ArrowRight'] || keys['d']) shipX = Math.min(GW - 20, shipX + SHIP_SPD);
+
+  // Shoot
+  const now = Date.now();
+  if ((keys[' '] || keys['ArrowUp']) && now - lastShot > 280) {
+    lastShot = now;
+    bullets.push({ id: now + Math.random(), x: shipX, y: SHIP_Y - 20 });
+  }
+
+  // Move player bullets
+  bullets = bullets.map(b => ({ ...b, y: b.y - BULLET_SPD })).filter(b => b.y > 0);
+
+  // Move enemy bullets
+  eBullets = eBullets.map(b => ({ ...b, y: b.y + EBULLET_SPD })).filter(b => b.y < GH);
+
+  // Move enemies — smooth continuous
+  const totalEnemies = 24;
+  const speedScale = 1 + (totalEnemies - alive.length) / totalEnemies * 1.8;
+  const vx = ENEMY_VX * speedScale * enemyDir;
+
+  if (alive.length > 0) {
+    const maxX = Math.max(...alive.map(e => e.x));
+    const minX = Math.min(...alive.map(e => e.x));
+    let drop = false;
+    if ((enemyDir === 1 && maxX >= GW - 40) || (enemyDir === -1 && minX <= 40)) {
+      drop = true;
+      enemyDir = -enemyDir;
+    }
+    enemies = enemies.map(e => e.alive ? { ...e, x: e.x + vx, y: drop ? e.y + 16 : e.y } : e);
+  }
+
+  // Enemy shoots
+  if (frame % 100 === 0 && alive.length > 0) {
+    const shooter = alive[Math.floor(Math.random() * alive.length)];
+    eBullets.push({ id: Date.now() + Math.random(), x: shooter.x, y: shooter.y + 16 });
+  }
+
+  // Collisions: player bullets vs enemies
+  const hitEnemies = new Set(), hitBullets = new Set();
+  bullets.forEach(b => {
+    enemies.forEach(e => {
+      if (!e.alive || hitEnemies.has(e.id)) return;
+      if (Math.abs(b.x - e.x) < 22 && Math.abs(b.y - e.y) < 18) {
+        hitEnemies.add(e.id); hitBullets.add(b.id);
+        score += e.type.points;
+        spawnExplosion(e.x, e.y);
+      }
+    });
+  });
+  enemies = enemies.map(e => hitEnemies.has(e.id) ? { ...e, alive: false } : e);
+  bullets = bullets.filter(b => !hitBullets.has(b.id));
+
+  // Collisions: enemy bullets vs ship
+  eBullets = eBullets.filter(b => {
+    if (Math.abs(b.x - shipX) < 16 && Math.abs(b.y - SHIP_Y) < 16) {
+      spawnExplosion(shipX, SHIP_Y);
+      lives--;
+      if (lives <= 0) { renderAll(); showEnd('dead'); return false; }
+      return false;
+    }
+    return true;
+  });
+  if (gameState !== 'playing') return;
+
+  // Enemies reach bottom
+  if (enemies.some(e => e.alive && e.y > SHIP_Y - 30)) {
+    renderAll(); showEnd('dead'); return;
+  }
+
+  // All enemies dead → next wave
+  if (enemies.filter(e => e.alive).length === 0) {
+    wave++;
+    bullets = []; eBullets = [];
+    enemyDir = 1;
+    initEnemies();
+  }
+
+  renderAll();
+}
+
+// ─── Keyboard ────────────────────────────────────────────────────
+const BLOCK = [' ','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
+window.addEventListener('keydown', e => {
+  if (BLOCK.includes(e.key)) e.preventDefault();
+  keys[e.key] = true;
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+</script>
+</body>
+</html>
