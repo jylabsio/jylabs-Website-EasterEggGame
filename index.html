@@ -23,7 +23,7 @@ body {
 #game-wrap {
   position: relative;
   width: 600px;
-  height: 1200px;
+  height: 1000px;
   background: #0a0f1e;
   border: 1px solid #1e293b;
   border-radius: 4px;
@@ -214,7 +214,7 @@ body {
       <div class="chip">Easter Eggs</div>
     </div>
     <div class="btn-row">
-      <a class="btn-primary" href="mailto:jylabs.io@gmail.com">LET'S TALK</a>
+      <a class="btn-primary" href="/cdn-cgi/l/email-protection#5a3023363b38297433351a3d373b333674393537">LET'S TALK</a>
       <button class="btn-secondary" onclick="startGame()">PLAY AGAIN</button>
     </div>
     <div class="micro">MADE WITH TOO MUCH COFFEE</div>
@@ -224,7 +224,7 @@ body {
 <div id="controls-hint" style="display:none;">← → MOVE · SPACE SHOOT</div>
 <div id="legend"></div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ─── SVG Templates ───────────────────────────────────────────────
 const SVG = {
   chrome: `<svg viewBox="0 0 32 32" width="28" height="28">
@@ -291,7 +291,7 @@ const ENEMY_TYPES = [
 ];
 
 // ─── Constants ───────────────────────────────────────────────────
-const GW = 600, GH = 1200;
+const GW = 600, GH = 1000;
 const SHIP_Y = GH - 70;
 const BULLET_SPD = 8, EBULLET_SPD = 1.8, SHIP_SPD = 5;
 const ENEMY_VX = 0.5;
@@ -620,13 +620,13 @@ function loop() {
   renderAll();
 }
 
+// ─── Expose to global scope (fixes Cloudflare closure scoping) ────
+window.startGame = startGame;
+
 // ─── Keyboard ────────────────────────────────────────────────────
 const BLOCK = [' ','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
-window.addEventListener('keydown', e => {
-  if (BLOCK.includes(e.key)) e.preventDefault();
-  keys[e.key] = true;
-});
-window.addEventListener('keyup', e => { keys[e.key] = false; });
+window.addEventListener('keydown', e => { if(BLOCK.includes(e.key)) e.preventDefault(); keys[e.key]=true; });
+window.addEventListener('keyup',   e => { keys[e.key]=false; });
 </script>
 </body>
 </html>
